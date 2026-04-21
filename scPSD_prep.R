@@ -1,33 +1,91 @@
-library(Seurat)
-library(dplyr)
-#BiocManager::install("Linnorm") <-- so somehting with this somehow
-library(Linnorm)
-library(edgeR)
-library(scone)
+#BiocManager::install("scran") # <-- so something with this somehow
 
-## add some code here so that the user inserts the wdir
-data <- ReadMtx(
-  mtx = "Desktop/bioinform/scPSD/GSE157829_RAW/GSM4775588_C1matrix.mtx.gz", 
-  features = "Desktop/bioinform/scPSD/GSE157829_RAW/GSM4775588_C1genes.tsv.gz", 
-  cells = "Desktop/bioinform/scPSD/GSE157829_RAW/GSM4775588_C1barcodes.tsv.gz"
-)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(edgeR)
+  library(scone)
+  library(Linnorm)
+  library(scran)
+  library(Seurat)
+  library(argparse) 
+  })
 
-
-seurat_data <- CreateSeuratObject(counts = data)
-seurat_data[["percent.mt"]] <- PercentageFeatureSet(seurat_data, pattern = "^MT-")
-target <- subset(seurat_data, subset = nCount_RNA > 200 & percent.mt < 30 
-                 & nFeature_RNA > 0)
-barcodes <- rownames(target)
-features <- colnames(target)
-
-data <- GetAssayData(target, layer = "counts")
-data <- as.matrix(data)
-
-processed <- Linnorm(data)
+print("Necessary libraries loaded")
 
 
+load_data <- function(matrix, features, cells){
+  
+  data <- ReadMtx(mtx = matrix, features = features, cells = cells)
+  return (data)
+}
+
+
+preprocess <- function(data, norm, nCRNA_threshold, nFRNA_threshold, pmt){
+  seurat_data <- CreateSeuratObject(counts = data)
+  seurat_data[["percent.mt"]] <- PercentageFeatureSet(seurat_data, pattern = "^MT-")
+  target <- subset(seurat_data,
+                   subset = nCount_RNA > nCRNA_threshold 
+                   & percent.mt < pmt 
+                   & nFeature_RNA > nFRNA_threshold)
+  barcodes <- rownames(target)
+  features <- colnames(target)
+  
+  data <- GetAssayData(target, layer = "counts")
+  data <- as.matrix(data)
+  
+  # check normalization types
+  norm_data <- Linnorm(data)
+  
+  
+  metrics <- list(norm_data, barcodes, features)
+  return (metrics)
+}
 
 
 
 
+parser <- ArgumentParser(description = "Loading in GEO dataset and 
+                         preprocessing before clustering.")
 
+# dataset loader
+parser$add_argument("-m", "--mtx", type = "character", help = " The genetic .mtx.gz file" )
+parser$add_argument("-b", "--barcode", type = "character", 
+                    help = " The cell barcodes in a .tsv.gz file" )
+parser$add_argument("-g", "--genes", type = "character",
+                    help = "The genes in a .tsv.gz file" )
+
+
+# data clean up 
+parser$add_argument("-cr", "--cRNA", type = "integer", default = 200, 
+                    help = "Min threshold for the number of RNA counts per cells")
+parser$add_argument("-fr", "--fRNA", type = "integer", default = 0, 
+                    help = "Min threshold for the number of genes expressed per cells")
+parser$add_argument("-p", '--pmt', type = "integer", default = 30,
+                    help = "Max threshold for percent of mitochondrial content per cell")
+parser$add_argument("-n", type = "character", default = "Raw",
+                    help = "Type of matrix normalization")
+
+
+
+args <- parser$parse_args()
+
+
+# location of datasets
+script_path <- commandArgs(trailingOnly = FALSE)
+script_path <- sub("--file=", "", commandArgs[grep("--file=", script_path)])
+script_dir <- dirname(normalizePath(script_path))
+# "/Users/stevem/Desktop/bioinform/scPSD"
+
+mtx <- paste(script_dir, args$mtx, sep="/")
+barcode <- paste(script_dir, args$barcode, sep="/")
+features <- paste(script_dir, args$genes, sep="/")
+nCRNA_threshold <- args$cRNA
+nFRNA_threshold <- args$fRNA
+pmt <- args$pmt
+norm <- args$norm
+
+data_matrix <- load_data(mtx, features, barcodes)
+new_data_matrix <- preprocess(data_matrix, norm, nCRNA_threshold, nFRNA_threshold, pmt)
+
+
+                            
