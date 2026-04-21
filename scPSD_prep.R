@@ -1,5 +1,5 @@
 #BiocManager::install("scran") # <-- so something with this somehow
-
+.rs.restartR()
 suppressPackageStartupMessages({
   library(dplyr)
   library(edgeR)
@@ -20,7 +20,10 @@ load_data <- function(matrix, features, cells){
 }
 
 
-preprocess <- function(data, norm, nCRNA_threshold, nFRNA_threshold, pmt){
+preprocess <- function(data, 
+                       norm = c("tmm", "cpm", "scone", "linnorm", "scran", 'surat'),
+                       nCRNA_threshold, nFRNA_threshold, pmt){
+  
   seurat_data <- CreateSeuratObject(counts = data)
   seurat_data[["percent.mt"]] <- PercentageFeatureSet(seurat_data, pattern = "^MT-")
   target <- subset(seurat_data,
@@ -34,7 +37,23 @@ preprocess <- function(data, norm, nCRNA_threshold, nFRNA_threshold, pmt){
   data <- as.matrix(data)
   
   # check normalization types
-  norm_data <- Linnorm(data)
+  norm <- tolower(norm)    
+  norm <- match.arg(norm)
+
+  if (norm == 'tmm'){
+    dge <- DGEList(counts = data)
+    dge <- calcNormFactors(dge, method = 'TMM')
+    norm_data <- edgeR::cpm(dge, log=FALSE)
+    
+  }else if ( norm == 'cpm'){
+    norm_data <- edgeR::cpm(data)
+  }else if (norm == 'scone'){
+    errorCondition("NotImplemented")
+  }else if (norm == 'linnorm'){
+    norm_data <- Linnorm.Norm(data, output = "Raw")
+  }else if (norm == 'scran'){
+    
+  }
   
   
   metrics <- list(norm_data, barcodes, features)
@@ -74,8 +93,8 @@ args <- parser$parse_args()
 script_path <- commandArgs(trailingOnly = FALSE)
 script_path <- sub("--file=", "", commandArgs[grep("--file=", script_path)])
 script_dir <- dirname(normalizePath(script_path))
-# "/Users/stevem/Desktop/bioinform/scPSD"
 
+# "/Users/stevem/Desktop/bioinform/scPSD"
 mtx <- paste(script_dir, args$mtx, sep="/")
 barcode <- paste(script_dir, args$barcode, sep="/")
 features <- paste(script_dir, args$genes, sep="/")
@@ -87,5 +106,6 @@ norm <- args$norm
 data_matrix <- load_data(mtx, features, barcodes)
 new_data_matrix <- preprocess(data_matrix, norm, nCRNA_threshold, nFRNA_threshold, pmt)
 
-
-                            
+data("Islam2011")
+dim(data)
+y_norm<- Linnorm.Norm(data, output='Raw')
