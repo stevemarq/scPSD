@@ -41,8 +41,7 @@ preprocess <- function(data,
   features <- colnames(target)
   
   data <- GetAssayData(target, layer = "counts")
-  #data <- as.matrix(data)
-  
+
   # check normalization types
   norm <- tolower(norm)    
   norm <- match.arg(norm)
@@ -130,7 +129,8 @@ ifelse(!dir.exists(processed_data_file),
        "Folder exists already")
 
 
-writeMM(new_data_matrix$mtx, file = prep_out)
+new_sparse_mtx <- as(new_data_matrix$mtx, "dgCMatrix")
+writeMM(new_sparse_mtx, file = prep_out)
 write.csv(new_data_matrix$barcodes, file = barcodes_out, row.names = FALSE)
 write.csv(new_data_matrix$features, file = feats_out, row.names = FALSE)
 
