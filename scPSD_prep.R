@@ -1,7 +1,8 @@
 #BiocManager::install("scran") # <-- so something with this somehow
-.rs.restartR()
+
 suppressPackageStartupMessages({
   library(dplyr)
+  library(Matrix)
   library(edgeR)
   library(scone)
   library(Linnorm)
@@ -21,7 +22,7 @@ load_data <- function(matrix, features, cells){
 
 
 preprocess <- function(data, 
-                       norm = c("tmm", "cpm", "scone", "linnorm", "scran", 'surat'),
+                       norm = c("raw", "tmm", "cpm", "scone", "linnorm", "scran", 'surat'),
                        nCRNA_threshold, nFRNA_threshold, pmt){
   
   seurat_data <- CreateSeuratObject(counts = data)
@@ -48,13 +49,14 @@ preprocess <- function(data,
   }else if ( norm == 'cpm'){
     norm_data <- edgeR::cpm(data)
   }else if (norm == 'scone'){
-    errorCondition("NotImplemented")
+    stop("NotImplemented")
   }else if (norm == 'linnorm'){
     norm_data <- Linnorm.Norm(data, output = "Raw")
   }else if (norm == 'scran'){
-    
+    stop("NotImplemented")
+  } else {
+    norm_data <- data
   }
-  
   
   metrics <- list(norm_data, barcodes, features)
   return (metrics)
@@ -81,22 +83,21 @@ parser$add_argument("-fr", "--fRNA", type = "integer", default = 0,
                     help = "Min threshold for the number of genes expressed per cells")
 parser$add_argument("-p", '--pmt', type = "integer", default = 30,
                     help = "Max threshold for percent of mitochondrial content per cell")
-parser$add_argument("-n", type = "character", default = "Raw",
+parser$add_argument("-n", "--norm", type = "character", default = "Raw",
                     help = "Type of matrix normalization")
 
 
 
 args <- parser$parse_args()
 
-
 # location of datasets
 script_path <- commandArgs(trailingOnly = FALSE)
-script_path <- sub("--file=", "", commandArgs[grep("--file=", script_path)])
+script_path <- sub("--file=", "", script_path[grep("--file=", script_path)])
 script_dir <- dirname(normalizePath(script_path))
 
-# "/Users/stevem/Desktop/bioinform/scPSD"
+# script_dir == "/Users/stevem/Desktop/bioinform/scPSD"
 mtx <- paste(script_dir, args$mtx, sep="/")
-barcode <- paste(script_dir, args$barcode, sep="/")
+barcodes <- paste(script_dir, args$barcode, sep="/")
 features <- paste(script_dir, args$genes, sep="/")
 nCRNA_threshold <- args$cRNA
 nFRNA_threshold <- args$fRNA
@@ -104,8 +105,23 @@ pmt <- args$pmt
 norm <- args$norm
 
 data_matrix <- load_data(mtx, features, barcodes)
+print("Dataset Loading Complete")
 new_data_matrix <- preprocess(data_matrix, norm, nCRNA_threshold, nFRNA_threshold, pmt)
+new_data_matrix <- 
+print("Data Normalization Complete")
 
-data("Islam2011")
-dim(data)
-y_norm<- Linnorm.Norm(data, output='Raw')
+processed_data_file <- paste(script_dir, "processed_data", sep="/")
+prep_out <- paste(processed_data_file, "prep_out.mtx", sep="/")
+barcodes_out <- paste(processed_data_file, "barcodes_out.csv", sep="/")
+feats_out <- paste(processed_data_file, "feats_out.csv", sep="/")
+
+
+ifelse(!dir.exists(processed_data_file),
+       dir.create(processed_data_file),
+       "Folder exists already")
+
+writeMM(as(new_data_matrix[1], "sparseMatrix"), file = prep_out)
+write.csv(new_data_matrix[2], file = barcodes_out, row.names = FALSE)
+write.csv(new_data_matrix[3], file = feats_out, row.names = FALSE)
+
+
