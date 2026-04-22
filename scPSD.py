@@ -17,7 +17,7 @@ class scPSD:
 
 
     def genomic_fft(self, data):
-        dft = fftn(np.abs(data), axis=0)
+        dft = fftn(np.abs(data), axes=0)
         magnitude = np.abs(dft)
         n = magnitude.shape[0]
         a2 = magnitude / n
@@ -36,7 +36,7 @@ class scPSD:
         return norm_a3
 
 
-    def run(self):
+    def transform(self):
         correlation_est = self.correlation_est(self.omics)
         genomic_fft = self.genomic_fft(correlation_est)
         spectral_entropy_est = self.spectral_entropy_est(genomic_fft)
