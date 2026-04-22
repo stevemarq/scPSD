@@ -16,6 +16,12 @@ print("Necessary libraries loaded")
 
 load_data <- function(matrix, features, cells){
   
+  for (f in c(matrix, features, cells)){
+    if (!file.exists(f)){
+      stop(paste(f, "file does not exist", sep=" "))
+      }
+  }
+  
   data <- ReadMtx(mtx = matrix, features = features, cells = cells)
   return (data)
 }
@@ -35,7 +41,7 @@ preprocess <- function(data,
   features <- colnames(target)
   
   data <- GetAssayData(target, layer = "counts")
-  data <- as.matrix(data)
+  #data <- as.matrix(data)
   
   # check normalization types
   norm <- tolower(norm)    
@@ -53,12 +59,16 @@ preprocess <- function(data,
   }else if (norm == 'linnorm'){
     norm_data <- Linnorm.Norm(data, output = "Raw")
   }else if (norm == 'scran'){
-    stop("NotImplemented")
+    clusters <- quickCluster(data)
+    sce <- computeSumFactors(data, clusters=clusters)
+    norm_data <- logNormCounts(sce)
   } else {
     norm_data <- data
   }
   
-  metrics <- list(norm_data, barcodes, features)
+  metrics <- list(mtx = norm_data,
+                  barcodes = barcodes,
+                  features = features)
   return (metrics)
 }
 
@@ -107,7 +117,6 @@ norm <- args$norm
 data_matrix <- load_data(mtx, features, barcodes)
 print("Dataset Loading Complete")
 new_data_matrix <- preprocess(data_matrix, norm, nCRNA_threshold, nFRNA_threshold, pmt)
-new_data_matrix <- 
 print("Data Normalization Complete")
 
 processed_data_file <- paste(script_dir, "processed_data", sep="/")
@@ -120,8 +129,9 @@ ifelse(!dir.exists(processed_data_file),
        dir.create(processed_data_file),
        "Folder exists already")
 
-writeMM(as(new_data_matrix[1], "sparseMatrix"), file = prep_out)
-write.csv(new_data_matrix[2], file = barcodes_out, row.names = FALSE)
-write.csv(new_data_matrix[3], file = feats_out, row.names = FALSE)
+
+writeMM(new_data_matrix$mtx, file = prep_out)
+write.csv(new_data_matrix$barcodes, file = barcodes_out, row.names = FALSE)
+write.csv(new_data_matrix$features, file = feats_out, row.names = FALSE)
 
 
