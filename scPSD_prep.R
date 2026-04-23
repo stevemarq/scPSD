@@ -54,7 +54,6 @@ preprocess <- function(data,
                    & nFeature_RNA > nFRNA_threshold)
   
   data <- GetAssayData(target, layer = "counts")
-  
   features <- rownames(data)
   cell_types <- get_cell_types(data)
   
@@ -149,7 +148,7 @@ ifelse(!dir.exists(processed_data_file),
 
 new_sparse_mtx <- as(new_data_matrix$mtx, "dgCMatrix")
 writeMM(new_sparse_mtx, file = prep_out)
-write.csv(new_data_matrix$cell_types, file = cells_out, row.names = FALSE)
+write.csv(new_data_matrix$cells, file = cells_out, row.names = FALSE)
 write.csv(new_data_matrix$features, file = feats_out, row.names = FALSE)
 
 
