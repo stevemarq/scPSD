@@ -8,10 +8,23 @@ suppressPackageStartupMessages({
   library(Linnorm)
   library(scran)
   library(Seurat)
-  library(argparse) 
+  library(argparse)
+  library(celldex)
+  library(SingleR)
   })
+#BiocManager::install(c("SingleR", "celldex"))
 
 print("Necessary libraries loaded")
+
+
+
+get_cell_types <- function(data){
+    ref <- celldex::BlueprintEncodeData() # uses this one because we know we are looking at immune cells
+    pred <- SingleR(test=data, ref=ref, labels=ref$label.main)
+    classes <- pred$labels
+    classes_df <- as.data.frame(classes)
+    return (classes_df)
+}
 
 
 load_data <- function(matrix, features, cells){
@@ -31,17 +44,20 @@ preprocess <- function(data,
                        norm = c("raw", "tmm", "cpm", "scone", "linnorm", "scran", 'surat'),
                        nCRNA_threshold, nFRNA_threshold, pmt){
   
+  
+  
   seurat_data <- CreateSeuratObject(counts = data)
   seurat_data[["percent.mt"]] <- PercentageFeatureSet(seurat_data, pattern = "^MT-")
   target <- subset(seurat_data,
                    subset = nCount_RNA > nCRNA_threshold 
                    & percent.mt < pmt 
                    & nFeature_RNA > nFRNA_threshold)
-  barcodes <- rownames(target)
-  features <- colnames(target)
   
   data <- GetAssayData(target, layer = "counts")
-
+  
+  features <- rownames(data)
+  cell_types <- get_cell_types(data)
+  
   # check normalization types
   norm <- tolower(norm)    
   norm <- match.arg(norm)
@@ -64,9 +80,11 @@ preprocess <- function(data,
   } else {
     norm_data <- data
   }
-  
+
+
+
   metrics <- list(mtx = norm_data,
-                  barcodes = barcodes,
+                  cells = cell_types,
                   features = features)
   return (metrics)
 }
@@ -120,7 +138,7 @@ print("Data Normalization Complete")
 
 processed_data_file <- paste(script_dir, "processed_data", sep="/")
 prep_out <- paste(processed_data_file, "prep_out.mtx", sep="/")
-barcodes_out <- paste(processed_data_file, "barcodes_out.csv", sep="/")
+cells_out <- paste(processed_data_file, "cells_out.csv", sep="/")
 feats_out <- paste(processed_data_file, "feats_out.csv", sep="/")
 
 
@@ -131,7 +149,7 @@ ifelse(!dir.exists(processed_data_file),
 
 new_sparse_mtx <- as(new_data_matrix$mtx, "dgCMatrix")
 writeMM(new_sparse_mtx, file = prep_out)
-write.csv(new_data_matrix$barcodes, file = barcodes_out, row.names = FALSE)
+write.csv(new_data_matrix$cell_types, file = cells_out, row.names = FALSE)
 write.csv(new_data_matrix$features, file = feats_out, row.names = FALSE)
 
 
