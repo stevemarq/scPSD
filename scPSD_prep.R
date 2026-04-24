@@ -49,9 +49,9 @@ preprocess <- function(data,
   seurat_data <- CreateSeuratObject(counts = data)
   seurat_data[["percent.mt"]] <- PercentageFeatureSet(seurat_data, pattern = "^MT-")
   target <- subset(seurat_data,
-                   subset = nCount_RNA > nCRNA_threshold 
+                   subset = nCount_RNA < nCRNA_threshold 
                    & percent.mt < pmt 
-                   & nFeature_RNA > nFRNA_threshold)
+                   & nFeature_RNA < nFRNA_threshold)
   
   data <- GetAssayData(target, layer = "counts")
   features <- rownames(data)
@@ -95,18 +95,19 @@ parser <- ArgumentParser(description = "Loading in GEO dataset and
                          preprocessing before clustering.")
 
 # dataset loader
-parser$add_argument("-m", "--mtx", type = "character", help = " The genetic .mtx.gz file" )
+parser$add_argument("-m", "--mtx", type = "character", help = " The genetic file '[dataset_name]/[filename].mtx.gz'" )
 parser$add_argument("-b", "--barcode", type = "character", 
-                    help = " The cell barcodes in a .tsv.gz file" )
+                    help = " The cell barcodes in a '[dataset_name]/[filename].tsv.gz' form" )
 parser$add_argument("-g", "--genes", type = "character",
-                    help = "The genes in a .tsv.gz file" )
+                    help = "The genes in a '[dataset_name]/[filename].tsv.gz' form" )
 
 
 # data clean up 
-parser$add_argument("-cr", "--cRNA", type = "integer", default = 200, 
-                    help = "Min threshold for the number of RNA counts per cells")
-parser$add_argument("-fr", "--fRNA", type = "integer", default = 0, 
-                    help = "Min threshold for the number of genes expressed per cells")
+
+parser$add_argument("-cr", "--cRNA", type = "integer", default = 2000, 
+                    help = "Max threshold for the number of RNA counts per cells")
+parser$add_argument("-fr", "--fRNA", type = "integer", default = 2000, 
+                    help = "Max threshold for the number of genes expressed per cells")
 parser$add_argument("-p", '--pmt', type = "integer", default = 30,
                     help = "Max threshold for percent of mitochondrial content per cell")
 parser$add_argument("-n", "--norm", type = "character", default = "Raw",
