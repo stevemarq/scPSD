@@ -46,7 +46,10 @@ preprocess <- function(data,
   
   
   
+  data <- data[rowSums(data > 0, na.rm=TRUE) > 0, ]
   seurat_data <- CreateSeuratObject(counts = data)
+  
+  # removing empty droplets / doublets
   seurat_data[["percent.mt"]] <- PercentageFeatureSet(seurat_data, pattern = "^MT-")
   target <- subset(seurat_data,
                    subset = nCount_RNA < nCRNA_threshold 
