@@ -46,9 +46,12 @@ preprocess <- function(data,
   
   
   
-  data <- data[rowSums(data > 0, na.rm=TRUE) > 0, ]
-  seurat_data <- CreateSeuratObject(counts = data)
-  
+  clean_data <- data[rowSums(data > 0, na.rm=TRUE) > 0, ]
+  seurat_data <- CreateSeuratObject(counts = clean_data)
+
+
+#   seurat_data <- CreateSeuratObject(counts = data)
+
   # removing empty droplets / doublets
   seurat_data[["percent.mt"]] <- PercentageFeatureSet(seurat_data, pattern = "^MT-")
   target <- subset(seurat_data,
@@ -74,7 +77,7 @@ preprocess <- function(data,
   }else if (norm == 'scone'){
     stop("NotImplemented")
   }else if (norm == 'linnorm'){
-    norm_data <- Linnorm.Norm(data, output = "Raw")
+    norm_data <- Linnorm.Norm(data, output = "XPM")
   }else if (norm == 'scran'){
     clusters <- quickCluster(data)
     sce <- computeSumFactors(data, clusters=clusters)
@@ -106,6 +109,7 @@ parser$add_argument("-g", "--genes", type = "character",
 
 
 # data clean up 
+
 
 parser$add_argument("-cr", "--cRNA", type = "integer", default = 2000, 
                     help = "Max threshold for the number of RNA counts per cells")
@@ -155,4 +159,5 @@ writeMM(new_sparse_mtx, file = prep_out)
 write.csv(new_data_matrix$cells, file = cells_out, row.names = FALSE)
 write.csv(new_data_matrix$features, file = feats_out, row.names = FALSE)
 
+# Rscript scPSD_prep.R -m "datasets/matrix.mtx.gz" -b "datasets/barcodes.tsv.gz" -g "datasets/genes.tsv.gz" -cr 10200 -fr 2500 -p 13 -n "Linnorm"
 
