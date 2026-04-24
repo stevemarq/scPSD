@@ -2,16 +2,16 @@ import numpy as np
 from scipy.fft import fftn
 
 class scPSD:
-    def __init__(self, scOmics):
-        self.omics = np.asarray(scOmics)
-        self.num_features, self.num_samples = self.omics.shape
-
+    def __init__(self):
+        pass
 
     def correlation_est(self, data):
         covariance = np.cov(data)
         std = np.std(data, axis=1)[:, np.newaxis]
         std_mat = np.dot(std, std.T)
-        p = covariance / std_mat
+        epsilon = 1e-9
+        p = covariance / (std_mat + epsilon)
+        # p = np.divide(covariance, std_mat, out=np.zeros_like(covariance), where=(std_mat != 0))
         a1 = p @ data
         return a1
 
@@ -25,8 +25,8 @@ class scPSD:
 
 
     def spectral_entropy_est(self, data):
-        feature_sums = np.sum(data, axis=0)[:, np.newaxis]
-        p_kj = (data.T * feature_sums[:, None]).T
+        feature_sums = 1 / np.sum(data, axis=0)[:, np.newaxis]
+        p_kj = data * feature_sums.T
         i_kj = -np.log(p_kj)
         h = p_kj * i_kj
         sample_means = np.mean(h, axis=1)[:, np.newaxis]
@@ -36,8 +36,8 @@ class scPSD:
         return norm_a3
 
 
-    def transform(self):
-        correlation_est = self.correlation_est(self.omics)
+    def transform(self, data):
+        correlation_est = self.correlation_est(data)
         genomic_fft = self.genomic_fft(correlation_est)
         spectral_entropy_est = self.spectral_entropy_est(genomic_fft)
         return spectral_entropy_est
